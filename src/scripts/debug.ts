@@ -688,7 +688,6 @@ function get_plando_randomizer_version(plando: {[key: string]: any}): [string, s
                 local_files = 'tests/ootr-local-fenhl-8-1-45-3';
                 break;
             case '8.1.51 Fenhl-1':
-            case '8.2.46 Fenhl-1':
                 local_files = 'tests/ootr-local-fenhl-8-1-45-3';
                 break;
             default:
