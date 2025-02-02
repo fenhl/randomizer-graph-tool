@@ -336,10 +336,14 @@ const option_to_item_names: {[option: string]: string[]} = {
 
 export class OotrGraphPlugin extends GraphPlugin {
     public static version_list = [
+        '8.2.0 Release',
+        '8.2.50 Dev',
+        '8.2.50 Fenhl-1',
+        '8.2.46 Rob-125',
         '8.1.0 Release',
         '8.1.51 Dev',
         '8.1.51 Fenhl-1',
-        '8.1.29 Rob-101',
+        '8.1.81 Rob-117',
         '8.1.29 Rob-104',
     ];
 
@@ -690,7 +694,6 @@ export class OotrGraphPlugin extends GraphPlugin {
                     let hint_location = this.worlds[0].get_location(hint_location_name);
                     let item: Item;
                     let item2: Item;
-                    let area: RegionGroup;
                     switch(hint_data.type) {
                         case 'location':
                             if (hint_data.location === undefined) throw `Can't import location hint with undefined location: ${hint_location_name}`;
@@ -702,7 +705,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                 item = this.worlds[0].get_item(hint_data.item.item)
                                 if (!!hint_data.item.price) item.price = hint_data.item.price;
                             }
-                            this.hint_location(hint_location, location, item, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_location(hint_location, location, item, (sim_mode && !hint_location.checked));
                             break;
                         case 'dual':
                             if (hint_data.location === undefined) throw `Can't import dual hint with undefined first location: ${hint_location_name}`;
@@ -723,23 +726,21 @@ export class OotrGraphPlugin extends GraphPlugin {
                                 item2 = this.worlds[0].get_item(hint_data.item2.item)
                                 if (!!hint_data.item2.price) item2.price = hint_data.item2.price;
                             }
-                            this.hint_dual_locations(hint_location, location1, item, location2, item2, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_dual_locations(hint_location, location1, item, location2, item2, (sim_mode && !hint_location.checked));
                             break;
                         case 'entrance':
                             if (hint_data.entrance === undefined) throw `Can't import entrance hint with undefined entrance: ${hint_location_name}`;
                             let source = this.worlds[0].get_entrance(`${hint_data.entrance.source.from} -> ${hint_data.entrance.source.region}`);
                             let target = this.worlds[0].get_entrance(`${hint_data.entrance.target.from} -> ${hint_data.entrance.target.region}`);
-                            this.hint_entrance(hint_location, source, target, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_entrance(hint_location, source, target, (sim_mode && !hint_location.checked));
                             break;
                         case 'woth':
                             if (hint_data.area === undefined) throw `Can't import woth hint with undefined region: ${hint_location_name}`;
-                            area = this.worlds[0].get_region_group(hint_data.area);
-                            this.hint_required_area(hint_location, area, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_required_area(hint_location, hint_data.area, (sim_mode && !hint_location.checked));
                             break;
                         case 'goal':
                             if (hint_data.area === undefined) throw `Can't import goal hint with undefined region: ${hint_location_name}`;
                             if (hint_data.goal === undefined) throw `Can't import goal hint with undefined goal: ${hint_location_name}`;
-                            area = this.worlds[0].get_region_group(hint_data.area);
                             let goal = new GraphHintGoal();
                             if (!!hint_data.goal.item) {
                                 if (typeof hint_data.goal.item === 'string') {
@@ -752,30 +753,27 @@ export class OotrGraphPlugin extends GraphPlugin {
                             }
                             if (!!hint_data.goal.location) goal.location = this.worlds[0].get_location(hint_data.goal.location);
                             goal.item_count = hint_data.goal.item_count;
-                            this.hint_area_required_for_goal(hint_location, area, goal, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_area_required_for_goal(hint_location, hint_data.area, goal, (sim_mode && !hint_location.checked));
                             break;
                         case 'foolish':
                             if (hint_data.area === undefined) throw `Can't import foolish hint with undefined region: ${hint_location_name}`;
-                            area = this.worlds[0].get_region_group(hint_data.area);
-                            this.hint_unrequired_area(hint_location, area, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_unrequired_area(hint_location, hint_data.area, (sim_mode && !hint_location.checked));
                             break;
                         case 'important_check':
                             if (hint_data.area === undefined) throw `Can't import important check hint with undefined region: ${hint_location_name}`;
                             if (hint_data.num_major_items === undefined) throw `Can't import important check hint with undefined major item count: ${hint_location_name}`;
-                            area = this.worlds[0].get_region_group(hint_data.area);
-                            this.hint_area_num_items(hint_location, area, hint_data.num_major_items, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_area_num_items(hint_location, hint_data.area, hint_data.num_major_items, (sim_mode && !hint_location.checked));
                             break;
                         case 'misc':
                             if (hint_data.area === undefined) throw `Can't import misc hint with undefined region: ${hint_location_name}`;
                             if (hint_data.item === undefined) throw `Can't import misc hint with undefined item: ${hint_location_name}`;
-                            area = this.worlds[0].get_region_group(hint_data.area);
                             if (typeof hint_data.item === 'string') {
                                 item = this.worlds[0].get_item(hint_data.item)
                             } else {
                                 item = this.worlds[0].get_item(hint_data.item.item)
                                 if (!!hint_data.item.price) item.price = hint_data.item.price;
                             }
-                            this.hint_item_in_area(hint_location, area, item, (sim_mode && !hint_location.checked) || !sim_mode);
+                            this.hint_item_in_area(hint_location, hint_data.area, item, (sim_mode && !hint_location.checked));
                             break;
                         default:
                             throw `Unknown hint type in import data: ${hint_data.type}`;
@@ -879,14 +877,14 @@ export class OotrGraphPlugin extends GraphPlugin {
                     // the user decide how to interpret it via the hinting
                     // functions on this class.
                     if (!!hint.hinted_locations && !!hint.hinted_items) {
-                        let hinted_group: RegionGroup | null = null;
+                        let hinted_group: string | null = null;
                         let color_split = hint.text.split('#').filter(t => t.length > 0);
                         // Check for woth/path first
                         if (hint.text.includes('on the way of the hero')) {
                             if (color_split.length > 1) {
                                 hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
                             }
-                            if (!!hinted_group) this.hint_required_area(hint_location, hinted_group, (sim_mode && !hint_location.checked) || !sim_mode);
+                            if (!!hinted_group) this.hint_required_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
                         // older builds did not have color on the #time# path
                         } else if (hint.text.includes('on the path of time')) {
                             try {
@@ -896,7 +894,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                 let goal = new GraphHintGoal();
                                 goal.item_count = 1;
                                 goal.item = this.worlds[0].get_item(path_items['time']);
-                                if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked) || !sim_mode);
+                                if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
                             } catch (e) {
                                 console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
                                 if (e instanceof Error) {
@@ -913,11 +911,11 @@ export class OotrGraphPlugin extends GraphPlugin {
                                 let path = color_split[3];
                                 if (Object.keys(path_locations).includes(path.toLowerCase())) {
                                     goal.location = this.worlds[0].get_location(path_locations[path.toLowerCase()]);
-                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked) || !sim_mode);
+                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
                                 }
                                 if (Object.keys(path_items).includes(path.toLowerCase())) {
                                     goal.item = this.worlds[0].get_item(path_items[path.toLowerCase()]);
-                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked) || !sim_mode);
+                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
                                 }
                             } catch (e) {
                                 console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
@@ -934,18 +932,18 @@ export class OotrGraphPlugin extends GraphPlugin {
                             // Special case for Sheik in Kakariko wording triggering region hints
                             if (!!hinted_group && !hint.text.includes('Sheik gives')) {
                                 let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
-                                this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked) || !sim_mode);
+                                this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked));
                             // no match, must be location or dual hint
                             } else if (hint.hinted_locations.length === 2) {
                                 let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
                                 let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
                                 let hinted_item2 = this.worlds[0].get_item(hint.hinted_items[1]);
                                 let hinted_location2 = this.worlds[0].get_location(hint.hinted_locations[1]);
-                                this.hint_dual_locations(hint_location, hinted_location, hinted_item, hinted_location2, hinted_item2, (sim_mode && !hint_location.checked) || !sim_mode);
+                                this.hint_dual_locations(hint_location, hinted_location, hinted_item, hinted_location2, hinted_item2, (sim_mode && !hint_location.checked));
                             } else {
                                 let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
                                 let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
-                                this.hint_location(hint_location, hinted_location, hinted_item, (sim_mode && !hint_location.checked) || !sim_mode);
+                                this.hint_location(hint_location, hinted_location, hinted_item, (sim_mode && !hint_location.checked));
                             }
                         }
                         
@@ -954,18 +952,18 @@ export class OotrGraphPlugin extends GraphPlugin {
                         // Have to filter for non-empty strings because important_check hints
                         // double up on ##region color## markers...
                         let color_split = hint.text.split('#').filter(t => t.length > 0);
-                        let hinted_group: RegionGroup | null = null;
+                        let hinted_group: string | null = null;
                         if (color_split.length > 1) {
                             hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
                         }
                         if (!!hinted_group) {
                             if (hint.text.includes('a foolish choice')) {
-                                this.hint_unrequired_area(hint_location, hinted_group, (sim_mode && !hint_location.checked) || !sim_mode);
+                                this.hint_unrequired_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
                             } else if (hint.text.includes('major items')) {
                                 try {
                                     let num_majors = parseInt(color_split[3]);
                                     if (num_majors === undefined || num_majors === null) throw(`Could not parse integer from ${color_split[3]}`);
-                                    this.hint_area_num_items(hint_location, hinted_group, num_majors, (sim_mode && !hint_location.checked) || !sim_mode);
+                                    this.hint_area_num_items(hint_location, hinted_group, num_majors, (sim_mode && !hint_location.checked));
                                 } catch (e) {
                                     console.log(`Trouble parsing spoiler gossip stone hint: important_check hint major items count is not a number in text ${hint.text}`);
                                     if (e instanceof Error) {
@@ -981,6 +979,8 @@ export class OotrGraphPlugin extends GraphPlugin {
             }
         }
 
+        // hint_location triggers collecting starting items, need to reset here to avoid double-collecting
+        this.worlds.map((world) => world.state.reset());
         this.finalize_world();
         this.all_tricks_worlds = this.create_tricked_worlds();
         this.all_tricks_and_keys_worlds = this.create_tricked_worlds(true);
@@ -1029,6 +1029,24 @@ export class OotrGraphPlugin extends GraphPlugin {
 
                 plando[':tracked_hints'] = {};
                 let locations = this.worlds[0].get_locations();
+                const buildExitName = (entrance: GraphEntrance, original: boolean = false): string => {
+                    let eLink = !!(entrance.replaces) && !original ? entrance.replaces : entrance;
+                    if (!eLink.use_target_alias) {
+                        return eLink.alias;
+                    } else {
+                        return eLink.target_alias;
+                    }
+                }
+                const buildHintRegionName = (hintRegion: GraphRegion | null): string => {
+                    if (hintRegion === null) return '';
+                    if (hintRegion.name.includes('->')) {
+                        let hintEntrance = hintRegion.exits[0].reverse;
+                        if (!!hintEntrance) return buildExitName(hintEntrance);
+                        throw `Could not build hint region name for region with no exits: ${hintRegion.name}`;
+                    } else {
+                        return hintRegion.name;
+                    }
+                }
                 for (let location of locations) {
                     if (location.type !== 'Event' && !!(location.item)) {
                         if (location.shuffled) {
@@ -1056,6 +1074,8 @@ export class OotrGraphPlugin extends GraphPlugin {
                         if (!!location.hint) {
                             let plando_hint: PlandoHint = { type: 'undefined' };
                             let location_item: PlandoItem | string;
+                            let hintRegion = '';
+                            if (!!location.hint.area) hintRegion = buildHintRegionName(location.hint.area);
                             switch (location.hint.type) {
                                 case 'location':
                                     if (location.hint.location === undefined || location.hint.location === null) throw `Can't save location hint with undefined location ${location.name}`;
@@ -1110,7 +1130,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     if (location.hint.area === undefined || location.hint.area === null) throw `Can't save woth hint with undefined region ${location.name}`;
                                     plando_hint = {
                                         type: 'woth',
-                                        area: location.hint.area.name,
+                                        area: hintRegion,
                                     }
                                     break;
                                 case 'goal':
@@ -1118,7 +1138,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     if (location.hint.goal === undefined || location.hint.goal === null) throw `Can't save goal hint with undefined goal ${location.name}`;
                                     plando_hint = {
                                         type: 'goal',
-                                        area: location.hint.area.name,
+                                        area: hintRegion,
                                         goal: {
                                             location: location.hint.goal.location?.name,
                                             item: location.hint.goal.item?.name,
@@ -1130,7 +1150,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     if (location.hint.area === undefined || location.hint.area === null) throw `Can't save foolish hint with undefined region ${location.name}`;
                                     plando_hint = {
                                         type: 'foolish',
-                                        area: location.hint.area.name,
+                                        area: hintRegion,
                                     }
                                     break;
                                 case 'important_check':
@@ -1138,7 +1158,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     if (location.hint.num_major_items === undefined || location.hint.num_major_items === null) throw `Can't save important check hint with undefined major item count ${location.name}`;
                                     plando_hint = {
                                         type: 'important_check',
-                                        area: location.hint.area.name,
+                                        area: hintRegion,
                                         num_major_items: location.hint.num_major_items,
                                     }
                                     break;
@@ -1147,7 +1167,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     if (location.hint.item === undefined || location.hint.item === null) throw `Can't save misc hint with undefined item ${location.name}`;
                                     plando_hint = {
                                         type: 'misc',
-                                        area: location.hint.area.name,
+                                        area: hintRegion,
                                         item: location.hint.item.name,
                                     }
                                     break;
@@ -1840,23 +1860,23 @@ export class OotrGraphPlugin extends GraphPlugin {
                     break;
                 case 'woth':
                     if (!!hint.area)
-                        this.hint_required_area(hint_location, hint.area);
+                        this.hint_required_area(hint_location, hint.area.alias);
                     break;
                 case 'goal':
                     if (!!hint.area && !!hint.goal)
-                        this.hint_area_required_for_goal(hint_location, hint.area, hint.goal);
+                        this.hint_area_required_for_goal(hint_location, hint.area.alias, hint.goal);
                     break;
                 case 'foolish':
                     if (!!hint.area)
-                        this.hint_unrequired_area(hint_location, hint.area);
+                        this.hint_unrequired_area(hint_location, hint.area.alias);
                     break;
                 case 'misc':
                     if (!!hint.area && !!hint.item)
-                        this.hint_item_in_area(hint_location, hint.area, hint.item);
+                        this.hint_item_in_area(hint_location, hint.area.alias, hint.item);
                     break;
                 case 'important_check':
                     if (!!hint.area && hint.num_major_items !== null)
-                        this.hint_area_num_items(hint_location, hint.area, hint.num_major_items);
+                        this.hint_area_num_items(hint_location, hint.area.alias, hint.num_major_items);
                     break;
             }
         }
@@ -1911,65 +1931,75 @@ export class OotrGraphPlugin extends GraphPlugin {
         hint_location.hint = hint;
     }
 
-    hint_required_area(hint_location: GraphLocation, hinted_area: GraphRegion, initially_hidden: boolean = false): void {
+    hint_required_area(hint_location: GraphLocation, hinted_area: string, initially_hidden: boolean = false): void {
         if (!!hint_location.hint) {
             this.unhint(hint_location);
         }
+        let hinted_region = hint_location.world?.get_region_group_from_hint_region(hinted_area);
+        if (hinted_region === undefined || hinted_region === null) throw `World undefined on hint location. Could not find region for hinted area ${hinted_area}`;
         if (!initially_hidden) {
-            hinted_area.is_required = true;
+            hinted_region.is_required = true;
         }
         let hint = new Hint('woth');
-        hint.area = hinted_area;
+        hint.area = hinted_region;
         hint_location.hint = hint;
     }
 
-    hint_area_required_for_goal(hint_location: GraphLocation, hinted_area: GraphRegion, hinted_goal: GraphHintGoal, initially_hidden: boolean = false): void {
+    hint_area_required_for_goal(hint_location: GraphLocation, hinted_area: string, hinted_goal: GraphHintGoal, initially_hidden: boolean = false): void {
         if (!!hint_location.hint) {
             this.unhint(hint_location);
         }
-        if (!initially_hidden && !(hinted_area.required_for.filter(g => g.equals(hinted_goal)).length > 0)) {
-            hinted_area.required_for.push(hinted_goal);
+        let hinted_region = hint_location.world?.get_region_group_from_hint_region(hinted_area);
+        if (hinted_region === undefined || hinted_region === null) throw `World undefined on hint location. Could not find region for hinted area ${hinted_area}`;
+        if (!initially_hidden && !(hinted_region.required_for.filter(g => g.equals(hinted_goal)).length > 0)) {
+            hinted_region.required_for.push(hinted_goal);
         }
         let hint = new Hint('goal');
-        hint.area = hinted_area;
+        hint.area = hinted_region;
         hint.goal = hinted_goal;
         hint_location.hint = hint;
     }
 
-    hint_unrequired_area(hint_location: GraphLocation, hinted_area: GraphRegion, initially_hidden: boolean = false): void {
+    hint_unrequired_area(hint_location: GraphLocation, hinted_area: string, initially_hidden: boolean = false): void {
         if (!!hint_location.hint) {
             this.unhint(hint_location);
         }
+        let hinted_region = hint_location.world?.get_region_group_from_hint_region(hinted_area);
+        if (hinted_region === undefined || hinted_region === null) throw `World undefined on hint location. Could not find region for hinted area ${hinted_area}`;
         if (!initially_hidden) {
-            hinted_area.is_not_required = true;
+            hinted_region.is_not_required = true;
         }
         let hint = new Hint('foolish');
-        hint.area = hinted_area;
+        hint.area = hinted_region;
         hint_location.hint = hint;
     }
 
-    hint_item_in_area(hint_location: GraphLocation, hinted_area: GraphRegion, hinted_item: GraphItem, initially_hidden: boolean = false) {
+    hint_item_in_area(hint_location: GraphLocation, hinted_area: string, hinted_item: GraphItem, initially_hidden: boolean = false) {
         if (!!hint_location.hint) {
             this.unhint(hint_location);
         }
-        if (!initially_hidden && !(hinted_area.hinted_items.map(i => i.name).includes(hinted_item.name))) {
-            hinted_area.hinted_items.push(hinted_item);
+        let hinted_region = hint_location.world?.get_region_group_from_hint_region(hinted_area);
+        if (hinted_region === undefined || hinted_region === null) throw `World undefined on hint location. Could not find region for hinted area ${hinted_area}`;
+        if (!initially_hidden && !(hinted_region.hinted_items.map(i => i.name).includes(hinted_item.name))) {
+            hinted_region.hinted_items.push(hinted_item);
         }
         let hint = new Hint('misc'); // covers Ganondorf Light Arrow hint and Dampe Diary hint
-        hint.area = hinted_area;
+        hint.area = hinted_region;
         hint.item = hinted_item;
         hint_location.hint = hint;
     }
 
-    hint_area_num_items(hint_location: GraphLocation, hinted_area: GraphRegion, num_major_items: number, initially_hidden: boolean = false): void {
+    hint_area_num_items(hint_location: GraphLocation, hinted_area: string, num_major_items: number, initially_hidden: boolean = false): void {
         if (!!hint_location.hint) {
             this.unhint(hint_location);
         }
+        let hinted_region = hint_location.world?.get_region_group_from_hint_region(hinted_area);
+        if (hinted_region === undefined || hinted_region === null) throw `World undefined on hint location. Could not find region for hinted area ${hinted_area}`;
         if (!initially_hidden) {
-            hinted_area.num_major_items = num_major_items;
+            hinted_region.num_major_items = num_major_items;
         }
         let hint = new Hint('important_check');
-        hint.area = hinted_area;
+        hint.area = hinted_region;
         hint.num_major_items = num_major_items;
         hint_location.hint = hint;
     }
@@ -2021,28 +2051,14 @@ export class OotrGraphPlugin extends GraphPlugin {
         hint_location.hint = null;
     }
 
-    extract_region_from_hint = (stone_name: string, color_split: string[], split_index: number, world: World) => {
-        let hinted_group: RegionGroup | null = null;
-        const interior_hint_areas = [
-            "the Temple of Time",
-            "the Thieves' Hideout"
-        ]
+    extract_region_from_hint = (stone_name: string, color_split: string[], split_index: number, world: World): string | null => {
+        let hinted_group: string | null = null;
         if (split_index < color_split.length) {
             let hint_area = color_split[split_index];
-            // No top-level region groups for interiors, so throw them out.
-            if (!interior_hint_areas.includes(hint_area)) {
-                //console.log(`Matching hint for ${stone_name} to region filter ${hint_area}`);
-                let matched_regions = world.regions.filter(r => r.hint()?.str === hint_area && !!r.parent_group);
-                //console.log(`Found ${matched_regions.length} regions`);
-                if (matched_regions.length > 0) {
-                    //console.log(`Using surrogate region ${matched_regions[0].name} for parent group selection`);
-                    hinted_group = matched_regions[0].parent_group;
-                    /*if (!!hinted_group) {
-                        console.log(`Set region group to ${hinted_group.name}`);
-                    } else {
-                        console.log(`Something went wrong, set hinted group to null`);
-                    }*/
-                }
+            // Convert gossip stone text to region alias used for tracker display
+            let matched_hint_regions = Object.values(HintAreas).filter(h => h.str === hint_area);
+            if (matched_hint_regions.length > 0) {
+                hinted_group = matched_hint_regions[0].short_name;
             }
         }
         return hinted_group
@@ -2335,9 +2351,14 @@ export class OotrGraphPlugin extends GraphPlugin {
         }
     }
 
+    get_hint_regions(): string[] {
+        return [...Object.values(HintAreas).map(a => !!a.short_name ? a.short_name : '').filter(a => !!a && a !== 'Free')];
+    }
+
     get_full_exit_pool(world: World): GraphEntrancePool {
         let pool: GraphEntrancePool = {};
         let all_exits = world.region_groups.filter(r => r.page !== '').flatMap(r => r.exits).filter(e => !(e.is_reverse()) && e.shuffled);
+        all_exits.push(...world.region_groups.filter(r => r.page !== '').flatMap(r => r.sub_groups.flatMap(r => r.exits).filter(e => !(e.is_reverse()) && e.shuffled)));
         for (let exit of all_exits) {
             let type_alias = !!exit.source_group ? exit.source_group.name : 'Unknown Region';
             if (!(Object.keys(pool).includes(type_alias))) pool[type_alias] = [];
@@ -2486,7 +2507,7 @@ export class OotrGraphPlugin extends GraphPlugin {
             }
         } else {
             // Normal entrances can only link to exactly one shuffled target.
-            let used_targets = all_targets.map(e => e.is_savewarp ? null : e.replaces).filter(e => e !== null);
+            let used_targets = all_targets.map(e => e.is_savewarp || e.one_way ? null : e.replaces).filter(e => e !== null);
             let targets = all_targets.filter(e => !(used_targets.includes(e)) && !!e.type && e.shuffled);
             for (let target of targets) {
                 if (!!(target.type) && !!(entrance.type)) {
@@ -2569,7 +2590,15 @@ export class OotrGraphPlugin extends GraphPlugin {
                     }
                     let alt_savewarp = savewarp.world.get_entrance(savewarp.name, dungeon_variant_name);
                     alt_savewarp.is_savewarp = true;
-                    if (!alt_savewarp.parent_region.is_boss_room && !!savewarp.replaces?.original_connection) {
+                    if ((!alt_savewarp.parent_region.is_boss_room) && !!savewarp.replaces?.original_connection) {
+                        let alt_replaces: Entrance;
+                        if (!!savewarp.replaces.parent_region.dungeon) {
+                            alt_replaces = savewarp.world.get_entrance(savewarp.replaces.name, dungeon_variant_name);
+                        } else {
+                            alt_replaces = savewarp.replaces;
+                        }
+                        alt_savewarp.replaces = alt_replaces;
+                        if (alt_savewarp.replaces === null || alt_savewarp.replaces.original_connection === null) throw `Attempted to connect alternate dungeon savewarp with no equivalent entrance`;
                         let alt_savewarp_target = savewarp.world.get_region(savewarp.replaces.original_connection.name, dungeon_variant_name);
                         alt_savewarp.connect(alt_savewarp_target);
                     }
@@ -2654,7 +2683,7 @@ export class OotrGraphPlugin extends GraphPlugin {
             let decoupled = Object.keys(world.settings).includes('decouple_entrances') && world.settings.decouple_entrances === true;
             for (let [type, forward_entry, return_entry] of this.entrance_list.entrances) {
                 let source_region_name = forward_entry[0].split(' -> ')[0];
-                if (this.version.branch !== 'Fenhl') {
+                if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')) {
                     // Handle different entrances for Ganons Castle to Ganons Tower depending on MQ variant.
                     // Skip the alternate as it is copied from the currently linked variant.
                     if (world.dungeon_mq['Ganons Castle'] && source_region_name === 'Ganons Castle Lobby') continue;
@@ -2700,9 +2729,9 @@ export class OotrGraphPlugin extends GraphPlugin {
                     if (forward_entrance.parent_region.dungeon !== 'Ganons Castle') {
                         entrance_variant_name = forward_entrance.name;
                     } else {
-                        if (this.version.branch !== 'Fenhl' && world.dungeon_mq['Ganons Castle'] && source_region_name === 'Ganons Castle Main') {
+                        if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37') && world.dungeon_mq['Ganons Castle'] && source_region_name === 'Ganons Castle Main') {
                             entrance_variant_name = 'Ganons Castle Lobby -> Ganons Castle Tower';
-                        } else if (this.version.branch !== 'Fenhl' && !world.dungeon_mq['Ganons Castle'] && source_region_name === 'Ganons Castle Lobby') {
+                        } else if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37') && !world.dungeon_mq['Ganons Castle'] && source_region_name === 'Ganons Castle Lobby') {
                             entrance_variant_name = 'Ganons Castle Main -> Ganons Castle Tower';
                         } else {
                             entrance_variant_name = forward_entrance.name;
@@ -2747,7 +2776,7 @@ export class OotrGraphPlugin extends GraphPlugin {
     
                     // Ganons Tower doesn't have an MQ variant but is marked as part of the dungeon
                     if (!!(return_entrance.parent_region.dungeon)
-                    && (!(['Ganons Castle Main', 'Ganons Castle Lobby'].includes(source_region_name)) || this.version.branch === 'Fenhl')) {
+                    && (!(['Ganons Castle Main', 'Ganons Castle Lobby'].includes(source_region_name)) || this.version.branch === 'Fenhl' || this.version.gte('8.2.37'))) {
                         let dungeon_variant_name = return_entrance.world.dungeon_mq[return_entrance.parent_region.dungeon] ?
                             return_entrance.parent_region.dungeon :
                             `${return_entrance.parent_region.dungeon} MQ`;
@@ -2773,7 +2802,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                     if (return_entrance.target_group === null) {
                         return_entrance.target_group = world.create_target_region_group(return_entrance);
                         if (!!(return_entrance.parent_region.dungeon)
-                        && (!(['Ganons Castle Main', 'Ganons Castle Lobby'].includes(source_region_name)) || this.version.branch === 'Fenhl')) {
+                        && (!(['Ganons Castle Main', 'Ganons Castle Lobby'].includes(source_region_name)) || this.version.branch === 'Fenhl' || this.version.gte('8.2.37'))) {
                             let dungeon_variant_name = return_entrance.world.dungeon_mq[return_entrance.parent_region.dungeon] ?
                                 return_entrance.parent_region.dungeon :
                                 `${return_entrance.parent_region.dungeon} MQ`;
@@ -2789,11 +2818,22 @@ export class OotrGraphPlugin extends GraphPlugin {
             for (let region_group of world.region_groups){
                 region_group.update_exits();
                 region_group.sort_lists();
+                for (let sub_group of region_group.sub_groups) {
+                    sub_group.update_exits();
+                    sub_group.sort_lists();
+                }
             }
             for (let [dungeon_name, is_mq] of Object.entries(world.dungeon_mq)) {
                 let variant_name = is_mq ? dungeon_name : `${dungeon_name} MQ`;
-                world.dungeons[variant_name][0].parent_group?.update_exits();
-                world.dungeons[variant_name][0].parent_group?.sort_lists();
+                let dungeon_group = world.dungeons[variant_name][0].parent_group;
+                if (!!dungeon_group) {
+                    dungeon_group.update_exits();
+                    dungeon_group.sort_lists();
+                    for (let sub_group of dungeon_group.sub_groups) {
+                        sub_group.update_exits();
+                        sub_group.sort_lists();
+                    }
+                }
             }
         }
     }
@@ -2926,6 +2966,8 @@ export class OotrGraphPlugin extends GraphPlugin {
                         (world.settings.tokensanity === 'overworld' && loc.dungeon())) {
                             world.push_vanilla_item(loc);
                     }
+                } else if (loc.name === 'Kak 100 Gold Skulltula Reward' && world.settings.shuffle_100_skulltula_rupee !== undefined && world.settings.shuffle_100_skulltula_rupee !== null) {
+                    if (!world.settings.shuffle_100_skulltula_rupee) world.push_vanilla_item(loc);
                 } else if (['ActorOverride', 'Freestanding', 'RupeeTower'].includes(loc.type)) {
                     if (world.settings.shuffle_freestanding_items === 'off' ||
                         (world.settings.shuffle_freestanding_items === 'dungeons' && !(loc.dungeon())) ||
@@ -3379,6 +3421,10 @@ export class OotrGraphPlugin extends GraphPlugin {
                     let known_type: BOULDER_TYPE;
                     if (Object.keys(BOULDER_TYPE_PLANDO).includes(boulder_type)) {
                         known_type = BOULDER_TYPE_PLANDO[boulder_type];
+                    // 8.2.46 Rob-124 python is saving boulder types as ints to the plando
+                    // for some reason, this is only needed for unit tests.
+                    } else if (!isNaN(parseInt(boulder_type)) && [0, 1, 2, 3, 4].includes(parseInt(boulder_type))) {
+                        known_type = parseInt(boulder_type);
                     } else {
                         known_type = BOULDER_TYPE.UNKNOWN;
                     }
@@ -3402,12 +3448,18 @@ export class OotrGraphPlugin extends GraphPlugin {
         for (let world of this.worlds) {
             for (let region of world.region_groups) {
                 region.viewable = false;
+                for (let sub_region of region.sub_groups) {
+                    sub_region.viewable = false;
+                }
             }
         }
         this.all_tricks_and_keys_search.collect_locations();
         for (let region of this.all_tricks_and_keys_search.iter_visited_regions()) {
             // ignore the logical bypass to Hyrule Castle through the skip_child_zelda branch from Root
-            if (!!region.parent_group && !(['HC Garden Locations', 'HC Garden Skippable Locations'].includes(region.name))) region.parent_group.viewable = true;
+            if (!!region.parent_group && !(['HC Garden Locations', 'HC Garden Skippable Locations'].includes(region.name))) {
+                region.parent_group.viewable = true;
+                if (!!region.parent_group.parent_group) region.parent_group.parent_group.viewable = true;
+            }
         }
     }
 
@@ -3551,16 +3603,30 @@ export class OotrGraphPlugin extends GraphPlugin {
 
     set_blue_warps(world: World): void {
         // Determine blue warp targets
-        let blue_warps: [Entrance, Entrance][] = [
-            [world.get_entrance('Queen Gohma Boss Room -> KF Outside Deku Tree'), world.get_entrance('Queen Gohma Boss Room -> Deku Tree Before Boss')],
-            [world.get_entrance('King Dodongo Boss Room -> Death Mountain'), world.get_entrance('King Dodongo Boss Room -> Dodongos Cavern Mouth')],
-            [world.get_entrance('Barinade Boss Room -> Zoras Fountain'), world.get_entrance('Barinade Boss Room -> Jabu Jabus Belly Before Boss')],
-            [world.get_entrance('Phantom Ganon Boss Room -> Sacred Forest Meadow'), world.get_entrance('Phantom Ganon Boss Room -> Forest Temple Before Boss')],
-            [world.get_entrance('Volvagia Boss Room -> DMC Central Local'), world.get_entrance('Volvagia Boss Room -> Fire Temple Before Boss')],
-            [world.get_entrance('Morpha Boss Room -> Lake Hylia'), world.get_entrance('Morpha Boss Room -> Water Temple Before Boss')],
-            [world.get_entrance('Bongo Bongo Boss Room -> Graveyard Warp Pad Region'), world.get_entrance('Bongo Bongo Boss Room -> Shadow Temple Before Boss')],
-            [world.get_entrance('Twinrova Boss Room -> Desert Colossus'), world.get_entrance('Twinrova Boss Room -> Spirit Temple Before Boss')],
-        ];
+        let blue_warps: [Entrance, Entrance][];
+        if (this.version.branch !== 'Fenhl' || this.version.lt('8.2.50')) {
+            blue_warps = [
+                [world.get_entrance('Queen Gohma Boss Room -> KF Outside Deku Tree'), world.get_entrance('Queen Gohma Boss Room -> Deku Tree Before Boss')],
+                [world.get_entrance('King Dodongo Boss Room -> Death Mountain'), world.get_entrance('King Dodongo Boss Room -> Dodongos Cavern Mouth')],
+                [world.get_entrance('Barinade Boss Room -> Zoras Fountain'), world.get_entrance('Barinade Boss Room -> Jabu Jabus Belly Before Boss')],
+                [world.get_entrance('Phantom Ganon Boss Room -> Sacred Forest Meadow'), world.get_entrance('Phantom Ganon Boss Room -> Forest Temple Before Boss')],
+                [world.get_entrance('Volvagia Boss Room -> DMC Central Local'), world.get_entrance('Volvagia Boss Room -> Fire Temple Before Boss')],
+                [world.get_entrance('Morpha Boss Room -> Lake Hylia'), world.get_entrance('Morpha Boss Room -> Water Temple Before Boss')],
+                [world.get_entrance('Bongo Bongo Boss Room -> Graveyard Warp Pad Region'), world.get_entrance('Bongo Bongo Boss Room -> Shadow Temple Before Boss')],
+                [world.get_entrance('Twinrova Boss Room -> Desert Colossus'), world.get_entrance('Twinrova Boss Room -> Spirit Temple Before Boss')],
+            ];
+        } else {
+            blue_warps = [
+                [world.get_entrance('Queen Gohma Blue Warp -> KF Outside Deku Tree'), world.get_entrance('Queen Gohma Boss Room -> Deku Tree Before Boss')],
+                [world.get_entrance('King Dodongo Blue Warp -> Death Mountain'), world.get_entrance('King Dodongo Boss Room -> Dodongos Cavern Mouth')],
+                [world.get_entrance('Barinade Blue Warp -> Zoras Fountain'), world.get_entrance('Barinade Boss Room -> Jabu Jabus Belly Before Boss')],
+                [world.get_entrance('Phantom Ganon Blue Warp -> Sacred Forest Meadow'), world.get_entrance('Phantom Ganon Boss Room -> Forest Temple Before Boss')],
+                [world.get_entrance('Volvagia Blue Warp -> DMC Central Local'), world.get_entrance('Volvagia Boss Room -> Fire Temple Before Boss')],
+                [world.get_entrance('Morpha Blue Warp -> Lake Hylia'), world.get_entrance('Morpha Boss Room -> Water Temple Before Boss')],
+                [world.get_entrance('Bongo Bongo Blue Warp -> Graveyard Warp Pad Region'), world.get_entrance('Bongo Bongo Boss Room -> Shadow Temple Before Boss')],
+                [world.get_entrance('Twinrova Blue Warp -> Desert Colossus'), world.get_entrance('Twinrova Boss Room -> Spirit Temple Before Boss')],
+            ];
+        }
 
         for (let [blue_warp, boss_door_exit] of blue_warps) {
             this.set_blue_warp(blue_warp, boss_door_exit);
@@ -3584,16 +3650,30 @@ export class OotrGraphPlugin extends GraphPlugin {
             'Bongo Bongo Boss Room -> Shadow Temple Before Boss': world.get_entrance('Shadow Temple Entryway -> Graveyard Warp Pad Region'),
             'Twinrova Boss Room -> Spirit Temple Before Boss': world.get_entrance('Spirit Temple Lobby -> Desert Colossus From Spirit Lobby'),
         };
-        let blue_warp_exits: {[e: string]: Entrance} = {
-            'Deku Tree Lobby -> KF Outside Deku Tree': world.get_entrance('Queen Gohma Boss Room -> KF Outside Deku Tree'),
-            'Dodongos Cavern Beginning -> Death Mountain': world.get_entrance('King Dodongo Boss Room -> Death Mountain'),
-            'Jabu Jabus Belly Beginning -> Zoras Fountain': world.get_entrance('Barinade Boss Room -> Zoras Fountain'),
-            'Forest Temple Lobby -> SFM Forest Temple Entrance Ledge': world.get_entrance('Phantom Ganon Boss Room -> Sacred Forest Meadow'),
-            'Fire Temple Lower -> DMC Fire Temple Entrance': world.get_entrance('Volvagia Boss Room -> DMC Central Local'),
-            'Water Temple Lobby -> Lake Hylia': world.get_entrance('Morpha Boss Room -> Lake Hylia'),
-            'Shadow Temple Entryway -> Graveyard Warp Pad Region': world.get_entrance('Bongo Bongo Boss Room -> Graveyard Warp Pad Region'),
-            'Spirit Temple Lobby -> Desert Colossus From Spirit Lobby': world.get_entrance('Twinrova Boss Room -> Desert Colossus'),
-        };
+        let blue_warp_exits: {[e: string]: Entrance};
+        if (this.version.branch !== 'Fenhl' || this.version.lt('8.2.50')) {
+            blue_warp_exits = {
+                'Deku Tree Lobby -> KF Outside Deku Tree': world.get_entrance('Queen Gohma Boss Room -> KF Outside Deku Tree'),
+                'Dodongos Cavern Beginning -> Death Mountain': world.get_entrance('King Dodongo Boss Room -> Death Mountain'),
+                'Jabu Jabus Belly Beginning -> Zoras Fountain': world.get_entrance('Barinade Boss Room -> Zoras Fountain'),
+                'Forest Temple Lobby -> SFM Forest Temple Entrance Ledge': world.get_entrance('Phantom Ganon Boss Room -> Sacred Forest Meadow'),
+                'Fire Temple Lower -> DMC Fire Temple Entrance': world.get_entrance('Volvagia Boss Room -> DMC Central Local'),
+                'Water Temple Lobby -> Lake Hylia': world.get_entrance('Morpha Boss Room -> Lake Hylia'),
+                'Shadow Temple Entryway -> Graveyard Warp Pad Region': world.get_entrance('Bongo Bongo Boss Room -> Graveyard Warp Pad Region'),
+                'Spirit Temple Lobby -> Desert Colossus From Spirit Lobby': world.get_entrance('Twinrova Boss Room -> Desert Colossus'),
+            };
+        } else {
+            blue_warp_exits = {
+                'Deku Tree Lobby -> KF Outside Deku Tree': world.get_entrance('Queen Gohma Blue Warp -> KF Outside Deku Tree'),
+                'Dodongos Cavern Beginning -> Death Mountain': world.get_entrance('King Dodongo Blue Warp -> Death Mountain'),
+                'Jabu Jabus Belly Beginning -> Zoras Fountain': world.get_entrance('Barinade Blue Warp -> Zoras Fountain'),
+                'Forest Temple Lobby -> SFM Forest Temple Entrance Ledge': world.get_entrance('Phantom Ganon Blue Warp -> Sacred Forest Meadow'),
+                'Fire Temple Lower -> DMC Fire Temple Entrance': world.get_entrance('Volvagia Blue Warp -> DMC Central Local'),
+                'Water Temple Lobby -> Lake Hylia': world.get_entrance('Morpha Blue Warp -> Lake Hylia'),
+                'Shadow Temple Entryway -> Graveyard Warp Pad Region': world.get_entrance('Bongo Bongo Blue Warp -> Graveyard Warp Pad Region'),
+                'Spirit Temple Lobby -> Desert Colossus From Spirit Lobby': world.get_entrance('Twinrova Blue Warp -> Desert Colossus'),
+            };
+        }
         let target = this.get_original_or_replaced_entrance(boss_door_exit);
         // If a boss room is inside a dungeon entrance (or inside a dungeon which is inside a dungeon entrance),
         // make the blue warp go to the furthest dungeon's blue warp target. Fenhl disables this for decoupled.

@@ -17,7 +17,7 @@ import type { SettingsDictionary } from "./SettingsList.js";
 import { RegionGroup } from "./RegionGroup.js";
 import { display_names } from './DisplayNames.js';
 import type { AccessRule } from "./RuleParser.js";
-import { Boulder, BOULDER_TYPE, boulder_list, mq_dungeon_boulders, vanilla_dungeon_boulders } from "./Boulders.js";
+import { Boulder, BOULDER_TYPE, boulder_list, mq_dungeon_boulders, vanilla_dungeon_boulders, vanilla_dungeon_boulders_8_1, vanilla_dungeon_boulders_8_2 } from "./Boulders.js";
 import { empty_reward_location_names } from "./LocationList.js";
 
 type Dictionary<T> = {
@@ -170,6 +170,8 @@ class World implements GraphWorld {
 
     public boulders: Boulder[];
     public boulder_cache: {[boulder_name: string]: Boulder};
+
+    public nnn: boolean = false;
 
     public state: WorldState;
 
@@ -590,6 +592,23 @@ class World implements GraphWorld {
                 this.boulders.push(boulder);
             }
         }
+        if (this.version.lt('8.2.0')) {
+            for (let dungeon of Object.values(vanilla_dungeon_boulders_8_1)) {
+                for (let [boulder_name, boulder_type] of Object.entries(dungeon)) {
+                    let boulder = new Boulder(boulder_name, boulder_type, this);
+                    this.boulder_cache[boulder_name] = boulder;
+                    this.boulders.push(boulder);
+                }
+            }
+        } else {
+            for (let dungeon of Object.values(vanilla_dungeon_boulders_8_2)) {
+                for (let [boulder_name, boulder_type] of Object.entries(dungeon)) {
+                    let boulder = new Boulder(boulder_name, boulder_type, this);
+                    this.boulder_cache[boulder_name] = boulder;
+                    this.boulders.push(boulder);
+                }
+            }
+        }
         for (let dungeon of Object.values(mq_dungeon_boulders)) {
             for (let [boulder_name, boulder_type] of Object.entries(dungeon)) {
                 let boulder = new Boulder(boulder_name, boulder_type, this);
@@ -722,8 +741,16 @@ class World implements GraphWorld {
                 new_region.time_passes = region.time_passes;
                 new_region.provides_time = TimeOfDay.ALL;
             }
-            if (new_region.name === 'Ganons Castle Grounds') {
+            if ((this.version.branch !== 'Fenhl' || this.version.lt('8.2.50'))
+                && (new_region.name === 'Ganons Castle Grounds' || (this.version.gt('8.1.28') && new_region.name === 'Ganons Castle Ledge'))) {
                 new_region.provides_time = TimeOfDay.DAMPE;
+            }
+            if (!!region.provides_time) {
+                if (Object.keys(TimeOfDay).includes(region.provides_time)) {
+                    new_region.provides_time = TimeOfDay[region.provides_time];
+                } else {
+                    throw `Unknown time of day provider ${new_region.name} with time ${region.provides_time}`;
+                }
             }
             if (new_region.name === 'Root') {
                 // internal locations to save empty dungeon rewards
@@ -794,7 +821,7 @@ class World implements GraphWorld {
                         new_region.exits.push(new_exit);
                     }
                 }
-                if (is_new_region && this.version.branch !== 'Fenhl'
+                if (is_new_region && this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')
                     && new_region.name === 'Ganons Castle Tower' && this.settings.logic_rules !== 'glitched'
                     && !(Object.keys(region.exits).includes('Ganons Castle Main'))
                     && !(Object.keys(region.exits).includes('Ganons Castle Lobby'))) {
@@ -809,13 +836,19 @@ class World implements GraphWorld {
                 }
             }
             if (!!region.savewarp) {
-                // Filter useless extra savewarp that only exists in MQ Water
-                if (region.region_name !== 'Water Temple Before Boss Lower') {
+                // Filter useless extra savewarp that only exists in vanilla or MQ dungeon variant
+                let extraneous_savewarp_regions = [
+                    'Water Temple Before Boss Lower',
+                    "Dodongos Cavern Back Side Room"
+                ];
+                if (!(extraneous_savewarp_regions.includes(region.region_name))) {
                     let savewarp_target = region.savewarp.split(' -> ')[1];
                     let exit_name = `${new_region.name} -> ${savewarp_target}`;
                     let new_exit = new Entrance(exit_name, new_region, this);
                     new_exit.original_connection_name = savewarp_target;
                     new_exit.one_way = true;
+                    new_exit.rule_string = 'true;';
+                    new_exit.transformed_rule = 'true;';
                     if (new_region.exits.filter(e => e.name === exit_name).length > 0) {
                         console.log(`Skipping duplicate exit definition ${exit_name} in region ${new_region.name} savewarps`);
                         new_exit = new_region.exits.filter(e => e.name === exit_name)[0];
@@ -949,11 +982,11 @@ class World implements GraphWorld {
                 if (!!(exit.connected_region) && alt_dungeon_regions.includes(exit.connected_region)) {
                     let alt_region = exit.disconnect();
                     let alt_connection_name: string;
-                    if (this.version.branch !== 'Fenhl'
+                    if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')
                         && dungeon_variant_name === 'Ganons Castle'
                         && exit.name === 'Ganons Castle Tower -> Ganons Castle Main') {
                             alt_connection_name = 'Ganons Castle Lobby';
-                    } else if (this.parent_graph.version.branch !== 'Fenhl'
+                    } else if (this.parent_graph.version.branch !== 'Fenhl' && this.parent_graph.version.lt('8.2.37')
                         && dungeon_variant_name === 'Ganons Castle MQ'
                         && exit.name === 'Ganons Castle Tower -> Ganons Castle Main') {
                             alt_connection_name = 'Ganons Castle Main';
@@ -966,11 +999,11 @@ class World implements GraphWorld {
                     // no need to update original connection property as these entrances aren't shuffled,
                     // but done anyway just in case since the target region group is important
                     let original_connection_name: string;
-                    if (this.version.branch !== 'Fenhl'
+                    if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')
                         && dungeon_variant_name === 'Ganons Castle'
                         && exit.name === 'Ganons Castle Tower -> Ganons Castle Main') {
                             original_connection_name = 'Ganons Castle Lobby';
-                    } else if (this.version.branch !== 'Fenhl'
+                    } else if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')
                         && dungeon_variant_name === 'Ganons Castle MQ'
                         && exit.name === 'Ganons Castle Tower -> Ganons Castle Main') {
                             original_connection_name = 'Ganons Castle Main';
@@ -1050,7 +1083,7 @@ class World implements GraphWorld {
                     // Ganon's Castle is handled properly on Fenhl's branch where Tower can be shuffled.
                     let alt_region: Region;
                     let exit_name = exit.name;
-                    if (this.version.branch !== 'Fenhl'
+                    if (this.version.branch !== 'Fenhl' && this.version.lt('8.2.37')
                         && region.dungeon === 'Ganons Castle'
                         && target_region.name === 'Ganons Castle Tower') {
                             let region_override = this.dungeon_mq[region.dungeon] ? 'Ganons Castle Lobby' : 'Ganons Castle Main';
@@ -1102,7 +1135,10 @@ class World implements GraphWorld {
         }
         for (let region_group of Object.values(this._region_group_cache)) {
             region_group.sort_lists();
-            this.region_groups.push(region_group);
+            // Don't include subgroups in top level list
+            if (region_group.parent_group === null) {
+                this.region_groups.push(region_group);
+            }
         }
         // Clear region group cache to ensure region variants create new groups
         this._region_group_cache = {};
@@ -1123,15 +1159,36 @@ class World implements GraphWorld {
 
     create_region_group(region: Region): RegionGroup | undefined {
         let alias: string = '';
+        let subgroup_aliases: Set<string> = new Set<string>();
         for (let [group_alias, sub_regions] of Object.entries(display_names.region_groups)) {
-            if (sub_regions.includes(region.name)) {
+            // Regions cannot exist in multiple region groups
+            if (sub_regions.region_names.includes(region.name)) {
                 alias = group_alias;
                 break;
+            }
+            // Regions cannot exist in both the region_names and subgroups lists
+            if (!!sub_regions.subgroups) {
+                for (let [subgroup_name, subgroup_regions] of Object.entries(sub_regions.subgroups)) {
+                    if (subgroup_regions.includes(region.name)) {
+                        alias = group_alias;
+                        subgroup_aliases.add(subgroup_name);
+                        // Don't break yet. Regions can exist in multiple subgroups
+                        // within the same region group (e.g. Castle Grounds)
+                    }
+                }
+                if (alias !== '') break;
             }
         }
         if (alias !== '') {
             let region_group = this.get_new_region_group(alias);
-            region_group.add_region(region);
+            if (subgroup_aliases.size === 0) {
+                region_group.add_region(region);
+            } else {
+                for (let subgroup_alias of subgroup_aliases) {
+                    let region_subgroup = region_group.get_new_sub_group(subgroup_alias);
+                    region_subgroup.add_region(region);
+                }
+            }
             return region_group;
         }
     }
@@ -1267,6 +1324,22 @@ class World implements GraphWorld {
                 throw(`No such region ${region_name}`);
             }
         }
+    }
+
+    get_region_group_from_hint_region(hint_region: string): RegionGroup {
+        let hinted_regions = this.region_groups.filter(r => r.alias === hint_region);
+        if (hinted_regions.length === 0) {
+            hinted_regions = this.region_groups.flatMap(r => r.sub_groups).filter(r => r.alias === hint_region);
+            if (hinted_regions.length === 0) {
+                function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
+                    return value !== null && value !== undefined;
+                }
+                hinted_regions = this.region_groups.flatMap(r => r.exits.filter(e => e.alias === hint_region).map(e => e.original_connection?.parent_group)).filter(notEmpty);
+            }
+        }
+        if (hinted_regions.length === 0) throw `No such hint region ${hint_region}`;
+        if (hinted_regions.length > 1) throw `Multiple hint region candidates found for ${hint_region}`;
+        return hinted_regions[0];
     }
 
     get_entrance(entrance: Entrance | string, dungeon_variant_name: string = ''): Entrance {
@@ -1605,7 +1678,6 @@ class World implements GraphWorld {
             'Skullwalltula Soul',
             'Flare Dancer Soul',
             'Dead hand Soul',
-            'Like-like Soul',
             'Spike Enemy Soul',
             'Anubis Soul',
             'Iron Knuckle Soul',
@@ -1623,6 +1695,11 @@ class World implements GraphWorld {
             enemy_souls_core.push('Shell blade Soul');
         } else {
             enemy_souls_core.push('Shell Blade Soul');
+        }
+        if (this.parent_graph.version.lt('8.2.0')) {
+            enemy_souls_core.push('Like-like Soul');
+        } else {
+            enemy_souls_core.push('Like Like Soul');
         }
         if (Object.keys(this.settings).includes('shuffle_enemy_spawns')) {
             if (this.settings.shuffle_enemy_spawns === 'bosses') {
