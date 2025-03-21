@@ -96,6 +96,7 @@ export default class EmptyGraphPlugin extends GraphPlugin {
     hint_unrequired_area(hint_location: GraphLocation, hinted_area: string): void { return };
     hint_item_in_area(hint_location: GraphLocation, hinted_area: string, item: GraphItem): void { return };
     hint_area_num_items(hint_location: GraphLocation, hinted_area: string, num_major_items: number): void { return };
+    hint_path_count(hint_location: GraphLocation, hinted_goal: GraphHintGoal, num_major_items: number): void { return };
     unhint(hint_location: GraphLocation): void { return };
     cycle_hinted_areas_for_item(item_name: string, graph_world: GraphWorld, forward: boolean): {hint: string, hinted: boolean} { return {hint: '', hinted: false} };
     get_hint_regions(): string[] { return []; }

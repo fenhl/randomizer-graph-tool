@@ -136,6 +136,7 @@ export interface GraphWorld {
             hint_locations: string[],
         }
     },
+    path_counts: {[goal: string]: number},
     get_entrance(entrance: GraphEntrance | string): GraphEntrance,
     get_location(location: GraphLocation | string): GraphLocation,
     get_entrances(): GraphEntrance[],
@@ -318,6 +319,7 @@ export abstract class GraphPlugin {
     abstract hint_unrequired_area(hint_location: GraphLocation, hinted_area: string): void;
     abstract hint_item_in_area(hint_location: GraphLocation, hinted_area: string, item: GraphItem): void;
     abstract hint_area_num_items(hint_location: GraphLocation, hinted_area: string, num_major_items: number): void;
+    abstract hint_path_count(hint_location: GraphLocation, hinted_goal: GraphHintGoal, num_major_items: number): void;
     abstract unhint(hint_location: GraphLocation): void;
     abstract cycle_hinted_areas_for_item(item_name: string, graph_world: GraphWorld, forward: boolean): {hint: string, hinted: boolean};
     abstract get_hint_regions(): string[];

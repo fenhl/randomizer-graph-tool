@@ -741,7 +741,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                             if (hint_data.area === undefined) throw `Can't import woth hint with undefined region: ${hint_location_name}`;
                             this.hint_required_area(hint_location, hint_data.area, (sim_mode && !hint_location.checked));
                             break;
-                        case 'goal':
+                        case 'goal': {
                             if (hint_data.area === undefined) throw `Can't import goal hint with undefined region: ${hint_location_name}`;
                             if (hint_data.goal === undefined) throw `Can't import goal hint with undefined goal: ${hint_location_name}`;
                             let goal = new GraphHintGoal();
@@ -758,6 +758,7 @@ export class OotrGraphPlugin extends GraphPlugin {
                             goal.item_count = hint_data.goal.item_count;
                             this.hint_area_required_for_goal(hint_location, hint_data.area, goal, (sim_mode && !hint_location.checked));
                             break;
+                        }
                         case 'foolish':
                             if (hint_data.area === undefined) throw `Can't import foolish hint with undefined region: ${hint_location_name}`;
                             this.hint_unrequired_area(hint_location, hint_data.area, (sim_mode && !hint_location.checked));
@@ -767,6 +768,24 @@ export class OotrGraphPlugin extends GraphPlugin {
                             if (hint_data.num_major_items === undefined) throw `Can't import important check hint with undefined major item count: ${hint_location_name}`;
                             this.hint_area_num_items(hint_location, hint_data.area, hint_data.num_major_items, (sim_mode && !hint_location.checked));
                             break;
+                        case 'goal-count': {
+                            if (hint_data.goal === undefined) throw `Can't import goal count hint with undefined goal: ${hint_location.name}`;
+                            if (hint_data.num_major_items === undefined) throw `Can't import goal count hint with undefined major item count: ${hint_location_name}`;
+                            let goal = new GraphHintGoal();
+                            if (!!hint_data.goal.item) {
+                                if (typeof hint_data.goal.item === 'string') {
+                                    item = this.worlds[0].get_item(hint_data.goal.item)
+                                } else {
+                                    item = this.worlds[0].get_item(hint_data.goal.item.item)
+                                    if (!!hint_data.goal.item.price) item.price = hint_data.goal.item.price;
+                                }
+                                goal.item = item;
+                            }
+                            if (!!hint_data.goal.location) goal.location = this.worlds[0].get_location(hint_data.goal.location);
+                            goal.item_count = hint_data.goal.item_count;
+                            this.hint_path_count(hint_location, goal, hint_data.num_major_items, (sim_mode && !hint_location.checked));
+                            break;
+                        }
                         case 'misc':
                             if (hint_data.area === undefined) throw `Can't import misc hint with undefined region: ${hint_location_name}`;
                             if (hint_data.item === undefined) throw `Can't import misc hint with undefined item: ${hint_location_name}`;
@@ -1027,9 +1046,31 @@ export class OotrGraphPlugin extends GraphPlugin {
                                 }
                                 break;
                             }
+                            case 'goal-count': {
+                                let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                try {
+                                    let goal = new GraphHintGoal();
+                                    goal.item_count = 1;
+                                    let path = color_split[1];
+                                    if (Object.keys(path_locations).includes(path.toLowerCase())) {
+                                        goal.location = this.worlds[0].get_location(path_locations[path.toLowerCase()]);
+                                    }
+                                    if (Object.keys(path_items).includes(path.toLowerCase())) {
+                                        goal.item = this.worlds[0].get_item(path_items[path.toLowerCase()]);
+                                    }
+                                    let num_majors = parseInt(color_split[3]);
+                                    if (num_majors === undefined || num_majors === null) throw(`Could not parse integer from ${color_split[3]}`);
+                                    this.hint_path_count(hint_location, goal, num_majors, (sim_mode && !hint_location.checked));
+                                } catch (e) {
+                                    console.log(`Trouble parsing spoiler gossip stone hint: goal-count hint major items count is not a number in text ${hint.text}`);
+                                    if (e instanceof Error) {
+                                        console.log(e.message);
+                                    }
+                                }
+                                break;
+                            }
                             case 'trial':
                             case 'entrance_always':
-                            case 'goal-count':
                             case 'wanderer':
                             case 'playthrough-location':
                             case 'unlock-woth':
@@ -1332,6 +1373,19 @@ export class OotrGraphPlugin extends GraphPlugin {
                                     plando_hint = {
                                         type: 'important_check',
                                         area: hintRegion,
+                                        num_major_items: location.hint.num_major_items,
+                                    }
+                                    break;
+                                case 'goal-count':
+                                    if (location.hint.goal === undefined || location.hint.goal === null) throw `Can't save goal hint with undefined goal ${location.name}`;
+                                    if (location.hint.num_major_items === undefined || location.hint.num_major_items === null) throw `Can't save goal count hint with undefined major item count ${location.name}`;
+                                    plando_hint = {
+                                        type: 'goal-count',
+                                        goal: {
+                                            location: location.hint.goal.location?.name,
+                                            item: location.hint.goal.item?.name,
+                                            item_count: location.hint.goal.item_count,
+                                        },
                                         num_major_items: location.hint.num_major_items,
                                     }
                                     break;
@@ -2051,6 +2105,10 @@ export class OotrGraphPlugin extends GraphPlugin {
                     if (!!hint.area && hint.num_major_items !== null)
                         this.hint_area_num_items(hint_location, hint.area.alias, hint.num_major_items);
                     break;
+                case 'goal-count':
+                    if (!!hint.goal && hint.num_major_items !== null)
+                        this.hint_path_count(hint_location, hint.goal, hint.num_major_items);
+                    break;
             }
         }
     }
@@ -2177,6 +2235,19 @@ export class OotrGraphPlugin extends GraphPlugin {
         hint_location.hint = hint;
     }
 
+    hint_path_count(hint_location: GraphLocation, hinted_goal: GraphHintGoal, num_major_items: number, initially_hidden: boolean = false): void {
+        if (!!hint_location.hint) {
+            this.unhint(hint_location);
+        }
+        if (!initially_hidden && !!hint_location.world && !!hinted_goal.item) {
+            hint_location.world.path_counts[hinted_goal.item.name] = num_major_items;
+        }
+        let hint = new Hint('goal-count');
+        hint.goal = hinted_goal;
+        hint.num_major_items = num_major_items;
+        hint_location.hint = hint;
+    }
+
     unhint(hint_location: GraphLocation, importing: boolean = false) {
         if (hint_location.world === null) throw `Can't unset hint location with unknown world: ${hint_location.name}`;
         let world = this.worlds[hint_location.world.id];
@@ -2211,6 +2282,8 @@ export class OotrGraphPlugin extends GraphPlugin {
                 hint_location.hint.area.is_not_required = false;
             } else if (hint_location.hint?.type === 'important_check' && !!hint_location.hint.area) {
                 hint_location.hint.area.num_major_items = null;
+            } else if (hint_location.hint?.type === 'goal-count' && !!hint_location.hint.goal?.item) {
+                delete hint_location.world.path_counts[hint_location.hint.goal.item.name];
             } else if (hint_location.hint?.type === 'misc' && !!hint_location.hint.item && !!hint_location.hint.area && hint_location.hint.area.hinted_items.length > 0) {
                 let area_items: GraphItem[] = [];
                 for (let hinted_item of hint_location.hint.area.hinted_items) {

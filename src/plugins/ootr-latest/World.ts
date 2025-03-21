@@ -182,6 +182,7 @@ class World implements GraphWorld {
             hint_locations: string[],
         }
     } = {}
+    public path_counts: {[goal: string]: number} = {}
     public pending_reward_assignments: {
         [entrance_name: string]: {
             hint: string,
