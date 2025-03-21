@@ -81,6 +81,7 @@ interface OotrPlandoHints {
         colors: string[],
         hinted_locations?: string[],
         hinted_items?: string[],
+        hint_type?: string,
     }
 }
 
@@ -877,107 +878,274 @@ export class OotrGraphPlugin extends GraphPlugin {
             for (let [stone_name, hint] of Object.entries(gossip_hints)) {
                 if (Object.keys(hint_stone_to_location_map).includes(stone_name)) {
                     let hint_location = this.worlds[0].get_location(hint_stone_to_location_map[stone_name]);
-                    // Try to parse the hint text from the base randomizer.
-                    // If we fail, also save the text to the location and let
-                    // the user decide how to interpret it via the hinting
-                    // functions on this class.
-                    if (!!hint.hinted_locations && !!hint.hinted_items) {
-                        let hinted_group: string | null = null;
-                        let color_split = hint.text.split('#').filter(t => t.length > 0);
-                        // Check for woth/path first
-                        if (hint.text.includes('on the way of the hero')) {
-                            if (color_split.length > 1) {
-                                hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
-                            }
-                            if (!!hinted_group) this.hint_required_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
-                        // older builds did not have color on the #time# path
-                        } else if (hint.text.includes('on the path of time')) {
-                            try {
+                    if (!!hint.hint_type) {
+                        switch (hint.hint_type) {
+                            case 'woth': {
+                                let hinted_group: string | null = null;
+                                let color_split = hint.text.split('#').filter(t => t.length > 0);
                                 if (color_split.length > 1) {
                                     hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
                                 }
-                                let goal = new GraphHintGoal();
-                                goal.item_count = 1;
-                                goal.item = this.worlds[0].get_item(path_items['time']);
-                                if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
-                            } catch (e) {
-                                console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
-                                if (e instanceof Error) {
-                                    console.log(e.message);
-                                }
+                                if (!!hinted_group) this.hint_required_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
+                                break;
                             }
-                        } else if (hint.text.includes('on the path')) {
-                            try {
+                            case 'goal':
+                            case 'goal-legacy':
+                            case 'goal-legacy-single': {
+                                let hinted_group: string | null = null;
+                                let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                // older builds did not have color on the #time# path
+                                if (hint.text.includes('on the path of time')) {
+                                    try {
+                                        if (color_split.length > 1) {
+                                            hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                        }
+                                        let goal = new GraphHintGoal();
+                                        goal.item_count = 1;
+                                        goal.item = this.worlds[0].get_item(path_items['time']);
+                                        if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
+                                    } catch (e) {
+                                        console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
+                                        if (e instanceof Error) {
+                                            console.log(e.message);
+                                        }
+                                    }
+                                } else {
+                                    try {
+                                        if (color_split.length > 1) {
+                                            hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                        }
+                                        let goal = new GraphHintGoal();
+                                        goal.item_count = 1;
+                                        let path = color_split[3];
+                                        if (Object.keys(path_locations).includes(path.toLowerCase())) {
+                                            goal.location = this.worlds[0].get_location(path_locations[path.toLowerCase()]);
+                                            if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
+                                        }
+                                        if (Object.keys(path_items).includes(path.toLowerCase())) {
+                                            goal.item = this.worlds[0].get_item(path_items[path.toLowerCase()]);
+                                            if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
+                                        }
+                                    } catch (e) {
+                                        console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
+                                        if (e instanceof Error) {
+                                            console.log(e.message);
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            case 'always':
+                            case 'sometimes':
+                            case 'song':
+                            case 'overworld':
+                            case 'dungeon': {
+                                if (!!hint.hinted_locations && !!hint.hinted_items) {
+                                    let hinted_group: string | null = null;
+                                    let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                    if (color_split.length > 1) {
+                                        hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                        if (hinted_group === null) hinted_group = this.extract_region_from_hint(stone_name, color_split, 3, this.worlds[0]);
+                                    }
+                                    let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                    let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
+                                    this.hint_location(hint_location, hinted_location, hinted_item, (sim_mode && !hint_location.checked));
+                                }
+                                break;
+                            }
+                            case 'dual_always':
+                            case 'dual': {
+                                if (!!hint.hinted_locations && !!hint.hinted_items) {
+                                    let hinted_group: string | null = null;
+                                    let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                    if (color_split.length > 1) {
+                                        hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                        if (hinted_group === null) hinted_group = this.extract_region_from_hint(stone_name, color_split, 3, this.worlds[0]);
+                                    }
+                                    let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                    let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
+                                    let hinted_item2 = this.worlds[0].get_item(hint.hinted_items[1]);
+                                    let hinted_location2 = this.worlds[0].get_location(hint.hinted_locations[1]);
+                                    this.hint_dual_locations(hint_location, hinted_location, hinted_item, hinted_location2, hinted_item2, (sim_mode && !hint_location.checked));
+                                }
+                                break;
+                            }
+                            case 'barren': {
+                                let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                let hinted_group: string | null = null;
                                 if (color_split.length > 1) {
                                     hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
                                 }
-                                let goal = new GraphHintGoal();
-                                goal.item_count = 1;
-                                let path = color_split[3];
-                                if (Object.keys(path_locations).includes(path.toLowerCase())) {
-                                    goal.location = this.worlds[0].get_location(path_locations[path.toLowerCase()]);
-                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
-                                }
-                                if (Object.keys(path_items).includes(path.toLowerCase())) {
-                                    goal.item = this.worlds[0].get_item(path_items[path.toLowerCase()]);
-                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
-                                }
-                            } catch (e) {
-                                console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
-                                if (e instanceof Error) {
-                                    console.log(e.message);
-                                }
+                                if (!!hinted_group) this.hint_unrequired_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
+                                break;
                             }
-                        } else {
-                            // Check if hinted location is a region
-                            if (color_split.length > 1) {
-                                hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
-                                if (hinted_group === null) hinted_group = this.extract_region_from_hint(stone_name, color_split, 3, this.worlds[0]);
+                            case 'item':
+                            case 'random': {
+                                if (!!hint.hinted_locations && !!hint.hinted_items) {
+                                    let hinted_group: string | null = null;
+                                    if (!!hinted_group) {
+                                        let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                        this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked));
+                                    }
+                                }
+                                break;
                             }
-                            // Special case for Sheik in Kakariko wording triggering region hints
-                            if (!!hinted_group && !hint.text.includes('Sheik gives')) {
-                                let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
-                                this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked));
-                            // no match, must be location or dual hint
-                            } else if (hint.hinted_locations.length === 2) {
-                                let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
-                                let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
-                                let hinted_item2 = this.worlds[0].get_item(hint.hinted_items[1]);
-                                let hinted_location2 = this.worlds[0].get_location(hint.hinted_locations[1]);
-                                this.hint_dual_locations(hint_location, hinted_location, hinted_item, hinted_location2, hinted_item2, (sim_mode && !hint_location.checked));
-                            } else {
-                                let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
-                                let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
-                                this.hint_location(hint_location, hinted_location, hinted_item, (sim_mode && !hint_location.checked));
+                            case 'junk': {
+                                break;
+                            }
+                            case 'named-item': {
+                                if (hint.text.includes('may be on the hero\'s path')) {
+                                    console.log('vague_named_items not implemented'); //TODO
+                                } else {
+                                    if (!!hint.hinted_locations && !!hint.hinted_items) {
+                                        let hinted_group: string | null = null;
+                                        if (!!hinted_group && !hint.text.includes('Sheik gives')) {
+                                            let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                            this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked));
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            case 'important_check': {
+                                let color_split = hint.text.split('#').filter(t => t.length > 0);
+                                let hinted_group: string | null = null;
+                                if (color_split.length > 1) {
+                                    hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                }
+                                if (!!hinted_group) {
+                                    try {
+                                        let num_majors = parseInt(color_split[3]);
+                                        if (num_majors === undefined || num_majors === null) throw(`Could not parse integer from ${color_split[3]}`);
+                                        this.hint_area_num_items(hint_location, hinted_group, num_majors, (sim_mode && !hint_location.checked));
+                                    } catch (e) {
+                                        console.log(`Trouble parsing spoiler gossip stone hint: important_check hint major items count is not a number in text ${hint.text}`);
+                                        if (e instanceof Error) {
+                                            console.log(e.message);
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                            case 'trial':
+                            case 'entrance_always':
+                            case 'goal-count':
+                            case 'wanderer':
+                            case 'playthrough-location':
+                            case 'unlock-woth':
+                            case 'unlock-playthrough':
+                            case 'entrance': {
+                                console.log(`Unimplemented hint type ${hint.hint_type}`); //TODO
+                                break;
+                            }
+                            default: {
+                                console.log(`Unknown hint type ${hint.hint_type}`);
+                                break;
                             }
                         }
-                        
-                    // colors key filters out junk hints
-                    } else if (!!hint.colors) {
-                        // Have to filter for non-empty strings because important_check hints
-                        // double up on ##region color## markers...
-                        let color_split = hint.text.split('#').filter(t => t.length > 0);
-                        let hinted_group: string | null = null;
-                        if (color_split.length > 1) {
-                            hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
-                        }
-                        if (!!hinted_group) {
-                            if (hint.text.includes('a foolish choice')) {
-                                this.hint_unrequired_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
-                            } else if (hint.text.includes('major items')) {
+                    } else {
+                        // Try to parse the hint text from the base randomizer.
+                        // If we fail, also save the text to the location and let
+                        // the user decide how to interpret it via the hinting
+                        // functions on this class.
+                        if (!!hint.hinted_locations && !!hint.hinted_items) {
+                            let hinted_group: string | null = null;
+                            let color_split = hint.text.split('#').filter(t => t.length > 0);
+                            // Check for woth/path first
+                            if (hint.text.includes('on the way of the hero')) {
+                                if (color_split.length > 1) {
+                                    hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                }
+                                if (!!hinted_group) this.hint_required_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
+                            // older builds did not have color on the #time# path
+                            } else if (hint.text.includes('on the path of time')) {
                                 try {
-                                    let num_majors = parseInt(color_split[3]);
-                                    if (num_majors === undefined || num_majors === null) throw(`Could not parse integer from ${color_split[3]}`);
-                                    this.hint_area_num_items(hint_location, hinted_group, num_majors, (sim_mode && !hint_location.checked));
+                                    if (color_split.length > 1) {
+                                        hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                    }
+                                    let goal = new GraphHintGoal();
+                                    goal.item_count = 1;
+                                    goal.item = this.worlds[0].get_item(path_items['time']);
+                                    if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
                                 } catch (e) {
-                                    console.log(`Trouble parsing spoiler gossip stone hint: important_check hint major items count is not a number in text ${hint.text}`);
+                                    console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
                                     if (e instanceof Error) {
                                         console.log(e.message);
                                     }
                                 }
+                            } else if (hint.text.includes('on the path')) {
+                                try {
+                                    if (color_split.length > 1) {
+                                        hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                    }
+                                    let goal = new GraphHintGoal();
+                                    goal.item_count = 1;
+                                    let path = color_split[3];
+                                    if (Object.keys(path_locations).includes(path.toLowerCase())) {
+                                        goal.location = this.worlds[0].get_location(path_locations[path.toLowerCase()]);
+                                        if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
+                                    }
+                                    if (Object.keys(path_items).includes(path.toLowerCase())) {
+                                        goal.item = this.worlds[0].get_item(path_items[path.toLowerCase()]);
+                                        if (!!hinted_group) this.hint_area_required_for_goal(hint_location, hinted_group, goal, (sim_mode && !hint_location.checked));
+                                    }
+                                } catch (e) {
+                                    console.log(`Trouble parsing spoiler gossip stone hint: path hint path could not be read for text ${hint.text}`);
+                                    if (e instanceof Error) {
+                                        console.log(e.message);
+                                    }
+                                }
+                            } else {
+                                // Check if hinted location is a region
+                                if (color_split.length > 1) {
+                                    hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                                    if (hinted_group === null) hinted_group = this.extract_region_from_hint(stone_name, color_split, 3, this.worlds[0]);
+                                }
+                                // Special case for Sheik in Kakariko wording triggering region hints
+                                if (!!hinted_group && !hint.text.includes('Sheik gives')) {
+                                    let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                    this.hint_item_in_area(hint_location, hinted_group, hinted_item, (sim_mode && !hint_location.checked));
+                                // no match, must be location or dual hint
+                                } else if (hint.hinted_locations.length === 2) {
+                                    let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                    let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
+                                    let hinted_item2 = this.worlds[0].get_item(hint.hinted_items[1]);
+                                    let hinted_location2 = this.worlds[0].get_location(hint.hinted_locations[1]);
+                                    this.hint_dual_locations(hint_location, hinted_location, hinted_item, hinted_location2, hinted_item2, (sim_mode && !hint_location.checked));
+                                } else {
+                                    let hinted_item = this.worlds[0].get_item(hint.hinted_items[0]);
+                                    let hinted_location = this.worlds[0].get_location(hint.hinted_locations[0]);
+                                    this.hint_location(hint_location, hinted_location, hinted_item, (sim_mode && !hint_location.checked));
+                                }
                             }
+                            
+                        // colors key filters out junk hints
+                        } else if (!!hint.colors) {
+                            // Have to filter for non-empty strings because important_check hints
+                            // double up on ##region color## markers...
+                            let color_split = hint.text.split('#').filter(t => t.length > 0);
+                            let hinted_group: string | null = null;
+                            if (color_split.length > 1) {
+                                hinted_group = this.extract_region_from_hint(stone_name, color_split, 1, this.worlds[0]);
+                            }
+                            if (!!hinted_group) {
+                                if (hint.text.includes('a foolish choice')) {
+                                    this.hint_unrequired_area(hint_location, hinted_group, (sim_mode && !hint_location.checked));
+                                } else if (hint.text.includes('major items')) {
+                                    try {
+                                        let num_majors = parseInt(color_split[3]);
+                                        if (num_majors === undefined || num_majors === null) throw(`Could not parse integer from ${color_split[3]}`);
+                                        this.hint_area_num_items(hint_location, hinted_group, num_majors, (sim_mode && !hint_location.checked));
+                                    } catch (e) {
+                                        console.log(`Trouble parsing spoiler gossip stone hint: important_check hint major items count is not a number in text ${hint.text}`);
+                                        if (e instanceof Error) {
+                                            console.log(e.message);
+                                        }
+                                    }
+                                }
+                            }
+                            // consider adding entrance hint detection, which needs the whole entrance hint table...
                         }
-                        // consider adding entrance hint detection, which needs the whole entrance hint table...
                     }
                     hint_location.hint_text = hint.text;
                 }
