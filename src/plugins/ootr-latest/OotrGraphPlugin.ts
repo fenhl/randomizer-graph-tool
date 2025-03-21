@@ -868,6 +868,9 @@ export class OotrGraphPlugin extends GraphPlugin {
             'spirit medallion': 'Spirit Medallion',
             'shadow medallion': 'Shadow Medallion',
             'light medallion': 'Light Medallion',
+            'power': 'Triforce of Power',
+            'wisdom': 'Triforce of Wisdom',
+            'courage': 'Triforce of Courage',
         }
         if (Object.keys(plando).includes('gossip_stones')) {
             let gossip_hints: OotrPlandoHints = plando['gossip_stones'];
